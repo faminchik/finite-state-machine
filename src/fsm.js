@@ -5,7 +5,9 @@ class FSM {
      */
     constructor(config) {
         this.config = config;
-        this.fsm = [null, this.config.initial];
+        this.activeState = this.config.initial;
+        this.undoArray = [];
+        this.redoArray = [];
     }
 
     /**
@@ -13,7 +15,7 @@ class FSM {
      * @returns {String}
      */
     getState() {
-        return this.fsm[this.fsm.length - 1];
+        return this.activeState;
     }
 
     /**
@@ -21,10 +23,13 @@ class FSM {
      * @param state
      */
     changeState(state) {
-            if (this.config.states.hasOwnProperty(state))
-                this.fsm.push(state);
-            else
-                throw new TypeError();
+        if (this.config.states.hasOwnProperty(state)) {
+            this.undoArray.push(this.activeState);
+            this.redoArray = [];
+            this.activeState = state;
+        } else {
+            throw new TypeError();
+        }
     }
 
     /**
@@ -32,20 +37,24 @@ class FSM {
      * @param event
      */
     trigger(event) {
-        var flag = false;
-        if (Object.keys(this.config.states[this.fsm[this.fsm.length - 1]].transitions).includes(event)){
-            this.fsm.push(this.config.states[this.fsm[this.fsm.length - 1]].transitions[event]);
+        let flag = false;
+        if (Object.keys(this.config.states[this.activeState].transitions).includes(event)){
+            this.undoArray.push(this.activeState);
+            this.redoArray = [];
+            this.activeState = this.config.states[this.activeState].transitions[event];
             flag = true;
         }
-        if (!flag)
+        if (!flag) {
             throw new TypeError();
+        }
     }
 
     /**
      * Resets FSM state to initial.
      */
     reset() {
-        this.fsm.push(this.config.initial);
+        this.undoArray.push(this.activeState);
+        this.activeState = this.config.initial;
     }
 
     /**
@@ -57,10 +66,10 @@ class FSM {
     getStates(event) {
         if (arguments.length === 0)
             return Object.keys(this.config.states);
-        var arr = [];
-        for (var st in this.config.states)
-            if (Object.keys(this.config.states[st].transitions).includes(event))
-                arr.push(st);
+        let arr = [];
+        for (let state in this.config.states)
+            if (Object.keys(this.config.states[state].transitions).includes(event))
+                arr.push(state);
         return arr;
     }
 
@@ -70,10 +79,11 @@ class FSM {
      * @returns {Boolean}
      */
     undo() {
-        if(this.fsm[this.fsm.length - 2] === null)
+        if (this.undoArray.length === 0) {
             return false;
-        this.fsm.unshift(this.fsm[this.fsm.length - 1]);
-        this.fsm.splice(this.fsm.length - 1, 1);
+        }
+        this.redoArray.push(this.activeState);
+        this.activeState = this.undoArray.pop();
         return true;
     }
 
@@ -83,10 +93,11 @@ class FSM {
      * @returns {Boolean}
      */
     redo() {
-        if(this.fsm[0] === null)
+        if(this.redoArray.length === 0) {
             return false;
-        this.fsm.push(this.fsm[0]);
-        this.fsm.splice(0, 1);
+        }
+        this.undoArray.push(this.activeState);
+        this.activeState = this.redoArray.pop();
         return true;
     }
 
@@ -94,14 +105,11 @@ class FSM {
      * Clears transition history
      */
     clearHistory() {
-        this.fsm = [null, this.config.initial];
+        this.undoArray = [];
+        this.redoArray = [];
     }
 }
 
 module.exports = FSM;
 
 /** @Created by Uladzimir Halushka **/
-
-
-
-
